@@ -3,7 +3,7 @@ FastAPI MCP server entrypoint. Also serves the web UI at /ui/.
 """
 from dotenv import load_dotenv
 load_dotenv()
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -57,7 +57,9 @@ def health_check():
     return {"status": "ok"}
 
 @app.get("/stream/logs")
-async def stream_logs(run_id: int):
+async def stream_logs(run_id: int = Query(..., description="Numeric workflow run ID")):
+    if not isinstance(run_id, int) or run_id <= 0:
+        return JSONResponse(status_code=422, content={"error": "run_id must be a positive integer"})
     token, owner, repo = get_github_credentials()
     generator = stream_github_logs(owner, repo, run_id, token)
     return StreamingResponse(generator, media_type="text/event-stream")
@@ -76,8 +78,8 @@ async def jsonrpc_endpoint(request: Request):
             # Special case: for github/execute fetch_logs, return stream URL
             if method == "github/execute" and params.get("action") == "fetch_logs":
                 run_id = params.get("run_id")
-                if not run_id:
-                    raise JsonRpcError(INTERNAL_ERROR, "'run_id' required for fetch_logs streaming")
+                if not isinstance(run_id, int) or run_id <= 0:
+                    raise JsonRpcError(INTERNAL_ERROR, "'run_id' must be a positive integer for fetch_logs streaming")
                 # Return the stream URL for the client to connect to
                 url = f"/stream/logs?run_id={run_id}"
                 return JSONResponse(content={"jsonrpc": "2.0", "result": {"stream_url": url, "run_id": run_id}, "id": body.get("id")})

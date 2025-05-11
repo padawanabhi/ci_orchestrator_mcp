@@ -10,9 +10,7 @@ def get_github_credentials():
     token = os.environ.get("GITHUB_TOKEN")
     owner = os.environ.get("GITHUB_OWNER")
     repo = os.environ.get("GITHUB_REPO")
-    print("TOKEN:", token)
-    print("OWNER:", owner)
-    print("REPO:", repo)
+
     if not token or not owner or not repo:
         raise RuntimeError("Missing GITHUB_TOKEN, GITHUB_OWNER, or GITHUB_REPO in environment")
     return token, owner, repo 
