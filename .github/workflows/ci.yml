@@ -9,6 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+      GITHUB_OWNER: "padawanabhi"
+      GITHUB_REPO: "ci_orchestrator_mcp"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
