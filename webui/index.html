@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CI Orchestrator MCP UI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>CI Orchestrator MCP UI</h1>
+  <div id="status"></div>
+  <section>
+    <h2>GitHub Resources</h2>
+    <button id="refresh-resources">Refresh</button>
+    <ul id="resources-list"></ul>
+  </section>
+  <section>
+    <h2>Trigger Workflow</h2>
+    <form id="trigger-form">
+      <label>Workflow ID: <input type="text" id="workflow-id" required></label>
+      <label>Ref (branch): <input type="text" id="workflow-ref" value="main" required></label>
+      <button type="submit">Trigger</button>
+    </form>
+    <div id="trigger-result"></div>
+  </section>
+  <section>
+    <h2>Stream Logs</h2>
+    <form id="logs-form">
+      <label>Run ID: <input type="text" id="run-id" required></label>
+      <button type="submit">Stream Logs</button>
+    </form>
+    <div id="log-controls">
+      <input type="text" id="log-search" placeholder="Search logs...">
+      <select id="log-filter"><option value="">All Jobs/Steps</option></select>
+      <button id="log-download" type="button">Download Logs</button>
+    </div>
+    <pre id="logs-output"></pre>
+  </section>
+  <script src="app.js"></script>
+</body>
+</html> 
