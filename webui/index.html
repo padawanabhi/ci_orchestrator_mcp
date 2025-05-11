@@ -29,6 +29,11 @@
       <label>Run ID: <input type="text" id="run-id" required></label>
       <button type="submit">Stream Logs</button>
     </form>
+    <div id="log-controls">
+      <input type="text" id="log-search" placeholder="Search logs...">
+      <select id="log-filter"><option value="">All Jobs/Steps</option></select>
+      <button id="log-download" type="button">Download Logs</button>
+    </div>
     <pre id="logs-output"></pre>
   </section>
   <script src="app.js"></script>

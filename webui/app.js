@@ -9,6 +9,9 @@ function setStatus(msg, isError = false) {
 
 let workflows = [];
 let runs = [];
+let lastLogs = [];
+let lastRawLogs = '';
+let lastRunId = null;
 
 async function listResources() {
   setStatus('Loading resources...');
@@ -48,6 +51,21 @@ async function listResources() {
 document.getElementById('refresh-resources').onclick = listResources;
 window.onload = listResources;
 
+async function pollForNewRun(workflowId, ref, callback) {
+  let attempts = 0;
+  while (attempts < 20) { // poll up to 20 times (about 20s)
+    await new Promise(r => setTimeout(r, 1000));
+    await listResources();
+    const found = runs.find(r => r.name === ref || r.name === undefined || r.workflow_id === workflowId);
+    if (found) {
+      callback(found.id.replace('run_', ''));
+      return;
+    }
+    attempts++;
+  }
+  setStatus('Could not find new run after triggering workflow.', true);
+}
+
 document.getElementById('trigger-form').onsubmit = async (e) => {
   e.preventDefault();
   let workflowId = document.getElementById('workflow-id').value.trim();
@@ -78,17 +96,52 @@ document.getElementById('trigger-form').onsubmit = async (e) => {
     resultDiv.textContent = '';
     return;
   }
-  setStatus('Workflow triggered.');
+  setStatus('Workflow triggered. Polling for new run...');
   resultDiv.textContent = JSON.stringify(data.result, null, 2);
+  // Poll for the new run and auto-stream logs
+  pollForNewRun(workflowId, ref, (runId) => {
+    document.getElementById('run-id').value = runId;
+    streamLogs(runId);
+  });
 };
 
-document.getElementById('logs-form').onsubmit = (e) => {
-  e.preventDefault();
-  let runId = document.getElementById('run-id').value.trim();
-  if (!/^[0-9]+$/.test(runId)) {
-    setStatus('Run ID must be numeric.', true);
-    return;
+function renderLogs() {
+  const output = document.getElementById('logs-output');
+  const search = document.getElementById('log-search').value.toLowerCase();
+  const filter = document.getElementById('log-filter').value;
+  let filtered = lastLogs;
+  if (filter) {
+    filtered = filtered.filter(l => l.filename === filter);
   }
+  if (search) {
+    filtered = filtered.filter(l => l.line.toLowerCase().includes(search));
+  }
+  output.textContent = filtered.map(l => `[${l.filename}] ${l.line}`).join('\n');
+}
+
+document.getElementById('log-search').oninput = renderLogs;
+document.getElementById('log-filter').onchange = renderLogs;
+document.getElementById('log-download').onclick = () => {
+  const blob = new Blob([document.getElementById('logs-output').textContent], {type: 'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `logs_run_${lastRunId || 'unknown'}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+};
+
+function updateLogFilterOptions() {
+  const select = document.getElementById('log-filter');
+  const filenames = Array.from(new Set(lastLogs.map(l => l.filename)));
+  select.innerHTML = '<option value="">All Jobs/Steps</option>' + filenames.map(f => `<option value="${f}">${f}</option>`).join('');
+}
+
+function streamLogs(runId) {
+  lastRunId = runId;
+  lastLogs = [];
+  lastRawLogs = '';
   const output = document.getElementById('logs-output');
   output.textContent = '';
   setStatus('Streaming logs...');
@@ -100,16 +153,19 @@ document.getElementById('logs-form').onsubmit = (e) => {
     if (match) {
       const filename = match[1];
       const line = match[2];
-      output.textContent += `[${filename}] ${line}\n`;
+      lastLogs.push({filename, line});
     } else {
-      output.textContent += event.data + '\n';
+      lastLogs.push({filename: '', line: event.data});
     }
+    renderLogs();
+    updateLogFilterOptions();
     output.scrollTop = output.scrollHeight;
   };
   es.onerror = async (e) => {
     es.close();
     if (!gotData) {
       setStatus('No logs streamed. Attempting to fetch finished logs...');
+      console.log('Fallback: fetching finished logs for run_id', runId);
       // Fallback: fetch finished logs via JSON-RPC
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -126,7 +182,15 @@ document.getElementById('logs-form').onsubmit = (e) => {
       });
       const data = await res.json();
       if (data.result && data.result.logs) {
-        output.textContent = data.result.logs;
+        lastRawLogs = data.result.logs;
+        // Parse logs into lines for search/filter
+        lastLogs = data.result.logs.split('\n').map(line => {
+          const m = line.match(/^\[(.+?)\] (.*)$/);
+          if (m) return {filename: m[1], line: m[2]};
+          return {filename: '', line};
+        });
+        renderLogs();
+        updateLogFilterOptions();
         setStatus('Fetched finished logs.');
       } else if (data.error) {
         setStatus('Error fetching finished logs: ' + data.error.message, true);
@@ -137,4 +201,14 @@ document.getElementById('logs-form').onsubmit = (e) => {
       setStatus('Log stream ended or error.', true);
     }
   };
+}
+
+document.getElementById('logs-form').onsubmit = (e) => {
+  e.preventDefault();
+  let runId = document.getElementById('run-id').value.trim();
+  if (!/^[0-9]+$/.test(runId)) {
+    setStatus('Run ID must be numeric.', true);
+    return;
+  }
+  streamLogs(runId);
 }; 

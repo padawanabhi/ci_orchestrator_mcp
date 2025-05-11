@@ -4,6 +4,8 @@ from src.utils.auth import get_github_credentials
 from src.mcp.error import JsonRpcError, INVALID_PARAMS, INTERNAL_ERROR
 import httpx
 import asyncio
+import zipfile
+import io
 
 GITHUB_API = "https://api.github.com"
 
@@ -49,14 +51,34 @@ async def github_execute(params: Dict[str, Any]) -> Any:
                 if not run_id:
                     raise JsonRpcError(INVALID_PARAMS, "'run_id' is required for fetch_logs")
                 url = f"{GITHUB_API}/repos/{owner}/{repo}/actions/runs/{run_id}/logs"
-                resp = await client.get(url, headers=headers)
+                resp = await client.get(url, headers=headers, follow_redirects=True)
                 if resp.status_code != 200:
+                    print(f"[fetch_logs] Failed to fetch logs: {resp.status_code} {resp.text}")
+                    if resp.status_code == 302:
+                        print(f"[fetch_logs] Redirected to: {resp.headers.get('location')}")
                     raise JsonRpcError(INTERNAL_ERROR, f"Failed to fetch logs: {resp.status_code}", resp.text)
-                # For now, just return the raw log content (could be zipped)
-                return {"status": "logs fetched", "run_id": run_id, "logs": resp.content.decode(errors="replace")}
+                # Unzip and concatenate all log lines as plaintext
+                try:
+                    with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+                        all_lines = []
+                        for filename in z.namelist():
+                            with z.open(filename) as f:
+                                for line in f:
+                                    all_lines.append(f"[{filename}] {line.decode(errors='replace').rstrip()}")
+                        print(f"[fetch_logs] {len(all_lines)} log lines fetched for run_id={run_id}")
+                        print("[fetch_logs] Sample log lines:")
+                        for l in all_lines[:10]:
+                            print(l)
+                        return {"status": "logs fetched", "run_id": run_id, "logs": "\n".join(all_lines)}
+                except zipfile.BadZipFile:
+                    text = resp.content.decode(errors="replace")
+                    print(f"[fetch_logs] Non-zip log content for run_id={run_id} (length={len(text)})")
+                    print(text[:500])
+                    return {"status": "logs fetched", "run_id": run_id, "logs": text}
             else:
                 raise JsonRpcError(INVALID_PARAMS, f"Unknown action: {action}")
         except JsonRpcError:
             raise
         except Exception as e:
+            print(f"[fetch_logs] Exception: {e}")
             raise JsonRpcError(INTERNAL_ERROR, f"GitHub execute error: {str(e)}") 

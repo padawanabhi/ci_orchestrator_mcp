@@ -1,5 +1,7 @@
 # CI Orchestrator MCP Server
 
+[![CI](https://github.com/padawanabhi/ci_orchestrator_mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/padawanabhi/ci_orchestrator_mcp/actions/workflows/ci.yml)
+
 A Model Context Protocol (MCP) v1.0 server for orchestrating CI/CD workflows across GitHub Actions (including self-hosted runners) and Jenkins, using JSON-RPC 2.0 over HTTP.
 
 ## Features

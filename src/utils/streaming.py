@@ -10,8 +10,10 @@ async def stream_github_logs(owner: str, repo: str, run_id: int, token: str) -> 
     url = f"https://api.github.com/repos/{owner}/{repo}/actions/runs/{run_id}/logs"
     headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
     async with httpx.AsyncClient() as client:
-        resp = await client.get(url, headers=headers)
+        resp = await client.get(url, headers=headers, follow_redirects=True)
         if resp.status_code != 200:
+            if resp.status_code == 302:
+                yield f"event: error\ndata: Redirected to: {resp.headers.get('location')}\n\n"
             yield f"event: error\ndata: Failed to fetch logs: {resp.status_code} {resp.text}\n\n"
             return
         # Unzip in memory
