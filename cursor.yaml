@@ -1,0 +1,5 @@
+mcpServers:
+  - name: ci-orchestrator
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+    transport: http
+    port: 8080 

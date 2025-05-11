@@ -1,0 +1,48 @@
+body {
+  font-family: system-ui, sans-serif;
+  background: #f7f7fa;
+  color: #222;
+  margin: 0;
+  padding: 2em;
+}
+h1 {
+  color: #2a4d7a;
+}
+section {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #0001;
+  margin-bottom: 2em;
+  padding: 1em 2em;
+  max-width: 600px;
+}
+label {
+  display: block;
+  margin: 0.5em 0;
+}
+button {
+  background: #2a4d7a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5em 1.2em;
+  font-size: 1em;
+  cursor: pointer;
+  margin-top: 0.5em;
+}
+button:hover {
+  background: #183153;
+}
+pre {
+  background: #222;
+  color: #eee;
+  padding: 1em;
+  border-radius: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 0.95em;
+}
+#status {
+  margin-bottom: 1em;
+  font-weight: bold;
+} 
